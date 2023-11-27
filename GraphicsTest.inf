@@ -1,0 +1,38 @@
+##
+#
+# GraphicsTest.inf
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010006
+  BASE_NAME                      = GraphicsTest
+  FILE_GUID                      = f29adc31-bb9a-4f22-8124-3a2ce1cc860d
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = ShellCEntryLib
+
+[Sources]
+  GraphicsTestApp.c
+  GraphicsTest.c
+  GraphicsTest.h
+  Rand.c
+  Rand.h
+  Timer.c
+  Timer.h
+  CmdLineLib/CmdLine.c
+  CmdLineLib/CmdLine.h
+  CmdLineLib/CmdLineInternal.h
+  GraphicsLib/Graphics.c
+  GraphicsLib/Graphics.c
+  GraphicsLib/Font.c
+  GraphicsLib/Font.h
+
+[Packages]
+  MdePkg/MdePkg.dec
+  ShellPkg/ShellPkg.dec
+
+[LibraryClasses]
+  UefiLib
+  ShellCEntryLib
+  ShellLib

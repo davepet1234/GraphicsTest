@@ -1,0 +1,6 @@
+[submodule "CmdLineLib"]
+	path = CmdLineLib
+	url = git@github.com:davepet1234/CmdLineLib.git
+[submodule "GraphicsLib"]
+	path = GraphicsLib
+	url = git@github.com:davepet1234/GraphicsLib.git
