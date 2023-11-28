@@ -33,8 +33,16 @@ typedef struct {
     BOOLEAN Run;    // true if test has been run
     UINT32 Count;   // number of iterations
     UINT32 Time;    // time taken
-} TEST_RESULT;
-STATIC TEST_RESULT TestResults[NUM_TESTS] = {0};
+} TEST_RUN_DATA;
+
+typedef struct {
+    UINTN Mode;     // graphics mode used
+    UINT32 HorRes;  // horizontial resolution
+    UINT32 VerRes;  // vertical resolution
+    TEST_RUN_DATA Data[NUM_TESTS];
+} TEST_RESULTS;
+
+TEST_RESULTS TestResults = {0};
 
 
 // local functions
@@ -56,16 +64,27 @@ STATIC VOID RunBouncingBallTest(UINT32 Duration, UINT32 Iterations);
  */
 EFI_STATUS RunGraphicTest(GRAPHIC_TEST_TYPE TestType, UINT32 Duration, UINT32 Iterations, BOOLEAN ClipTest)
 {
+    EFI_STATUS Status;
+
     if (!Duration && !Iterations) {
         DbgPrint(DL_WARN, "%s() zero duration and iterations", __func__);
         return EFI_INVALID_PARAMETER;
     }
     InitTimer();
-    EFI_STATUS Status = InitGraphics();
+    Status = InitGraphics();
     if (EFI_ERROR(Status)) {
         Print(L"ERROR: Failed to initialise graphics (%r)\n", Status);
         return Status;
     }
+    UINTN Mode;
+    Status = GetGraphicsMode(&Mode);
+    if (EFI_ERROR(Status)) {
+        Print(L"ERROR: Failed to get graphics mode (%r)\n", Status);
+        return Status;
+    }
+    TestResults.Mode = Mode;
+    TestResults.HorRes = GetFBHorRes();
+    TestResults.VerRes = GetFBVerRes();
     ClearScreen(0);
     if (ClipTest) {
         INT32 HorOff = GetFBHorRes() / CLIP_FACTOR;
@@ -129,9 +148,8 @@ STATIC VOID RunTest(GRAPHIC_TEST_TYPE TestType, UINT32 Duration, UINT32 Iteratio
         break;
     default:
         DbgPrint(DL_ERROR, "Invalid graphics test (%u)\n", TestType);
-        goto error_exit;
+        break;
     }
-error_exit:    
 }
 
 /*
@@ -139,17 +157,11 @@ error_exit:
  */
 VOID PrintTestResults(VOID)
 {
-    UINTN Mode;
-    EFI_STATUS Status = GetGraphicsMode(&Mode);
-    if (EFI_ERROR(Status)) {
-        Print(L"ERROR: Failed to read current graphics mode (%r)\n", Status);
-    } else {
-        Print(L"Mode %d - %ux%u\n", Mode, GetFBHorRes(), GetFBVerRes());
-    }
+    Print(L"Mode %u - %ux%u\n", TestResults.Mode, TestResults.HorRes, TestResults.VerRes);
     Print(L"Test        Iterations  Time\n");
     for (UINTN i=0; i<NUM_TESTS; i++) {
-        if (TestResults[i].Run) {
-            Print(L"%-10s : %9u %5u\n", GetTestDesc(i), TestResults[i].Count, TestResults[i].Time);
+        if (TestResults.Data[i].Run) {
+            Print(L"%-10s : %9u %5u\n", GetTestDesc(i), TestResults.Data[i].Count, TestResults.Data[i].Time);
         }
     }
 }
@@ -212,7 +224,7 @@ STATIC VOID RunRandPixelTest(UINT32 Duration, UINT32 Iterations)
         if (Duration && CalcMsTime(EndTime, StartTime) >= Duration) break;
         if (Iterations && (Count >= Iterations)) break;
     }
-    TEST_RESULT *Results = &TestResults[PIXEL_TEST];
+    TEST_RUN_DATA *Results = &TestResults.Data[PIXEL_TEST];
     Results->Run = TRUE;
     Results->Count = Count;
     Results->Time = CalcMsTime(EndTime, StartTime);
@@ -242,7 +254,7 @@ STATIC VOID RunRandLineTest(UINT32 Duration, UINT32 Iterations)
         if (Duration && CalcMsTime(EndTime, StartTime) >= Duration) break;
         if (Iterations && (Count >= Iterations)) break;
     }
-    TEST_RESULT *Results = &TestResults[LINE_TEST];
+    TEST_RUN_DATA *Results = &TestResults.Data[LINE_TEST];
     Results->Run = TRUE;
     Results->Count = Count;
     Results->Time = CalcMsTime(EndTime, StartTime);
@@ -277,7 +289,7 @@ STATIC VOID RunRandHLineTest(UINT32 Duration, UINT32 Iterations)
         if (Duration && CalcMsTime(EndTime, StartTime) >= Duration) break;
         if (Iterations && (Count >= Iterations)) break;
     }
-    TEST_RESULT *Results = &TestResults[HLINE_TEST];
+    TEST_RUN_DATA *Results = &TestResults.Data[HLINE_TEST];
     Results->Run = TRUE;
     Results->Count = Count;
     Results->Time = CalcMsTime(EndTime, StartTime);
@@ -312,7 +324,7 @@ STATIC VOID RunRandVLineTest(UINT32 Duration, UINT32 Iterations)
         if (Duration && CalcMsTime(EndTime, StartTime) >= Duration) break;
         if (Iterations && (Count >= Iterations)) break;
     }
-    TEST_RESULT *Results = &TestResults[VLINE_TEST];
+    TEST_RUN_DATA *Results = &TestResults.Data[VLINE_TEST];
     Results->Run = TRUE;
     Results->Count = Count;
     Results->Time = CalcMsTime(EndTime, StartTime);
@@ -346,7 +358,7 @@ STATIC VOID RunRandRectangleTest(UINT32 Duration, UINT32 Iterations, BOOLEAN Fil
         if (Duration && CalcMsTime(EndTime, StartTime) >= Duration) break;
         if (Iterations && (Count >= Iterations)) break;
     }
-    TEST_RESULT *Results = Filled ? &TestResults[FILL_RECTANGLE_TEST] : &TestResults[RECTANGLE_TEST];
+    TEST_RUN_DATA *Results = Filled ? &TestResults.Data[FILL_RECTANGLE_TEST] : &TestResults.Data[RECTANGLE_TEST];
     Results->Run = TRUE;
     Results->Count = Count;
     Results->Time = CalcMsTime(EndTime, StartTime);
@@ -401,7 +413,7 @@ STATIC VOID RunRandCircleTest(UINT32 Duration, UINT32 Iterations, BOOLEAN Filled
         if (Duration && CalcMsTime(EndTime, StartTime) >= Duration) break;
         if (Iterations && (Count >= Iterations)) break;
     }
-    TEST_RESULT *Results = Filled ? &TestResults[FILL_CIRCLE_TEST] : &TestResults[CIRCLE_TEST];
+    TEST_RUN_DATA *Results = Filled ? &TestResults.Data[FILL_CIRCLE_TEST] : &TestResults.Data[CIRCLE_TEST];
     Results->Run = TRUE;
     Results->Count = Count;
     Results->Time = CalcMsTime(EndTime, StartTime);
@@ -433,7 +445,7 @@ STATIC VOID RunRandTextTest(UINT32 Duration, UINT32 Iterations, BOOLEAN SetBackg
         if (Duration && CalcMsTime(EndTime, StartTime) >= Duration) break;
         if (Iterations && (Count >= Iterations)) break;
     }
-    TEST_RESULT *Results = SetBackground ? &TestResults[TEXT1_TEST] : &TestResults[TEXT2_TEST];
+    TEST_RUN_DATA *Results = SetBackground ? &TestResults.Data[TEXT1_TEST] : &TestResults.Data[TEXT2_TEST];
     Results->Run = TRUE;
     Results->Count = Count;
     Results->Time = CalcMsTime(EndTime, StartTime);
@@ -461,7 +473,7 @@ STATIC VOID RunClearScreenTest(UINT32 Duration, UINT32 Iterations)
         if (Duration && CalcMsTime(EndTime, StartTime) >= Duration) break;
         if (Iterations && (Count >= Iterations)) break;
     }
-    TEST_RESULT *Results = &TestResults[CLEAR_SCREEN_TEST];
+    TEST_RUN_DATA *Results = &TestResults.Data[CLEAR_SCREEN_TEST];
     Results->Run = TRUE;
     Results->Count = Count;
     Results->Time = CalcMsTime(EndTime, StartTime);
@@ -515,7 +527,7 @@ STATIC VOID RunBouncingBallTest(UINT32 Duration, UINT32 Iterations)
             break;
         }
     }
-    TEST_RESULT *Results = &TestResults[BOUNCING_BALL_TEST];
+    TEST_RUN_DATA *Results = &TestResults.Data[BOUNCING_BALL_TEST];
     Results->Run = TRUE;
     Results->Count = Count;
     Results->Time = CalcMsTime(EndTime, StartTime);

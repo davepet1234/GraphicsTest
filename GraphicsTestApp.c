@@ -36,6 +36,7 @@ STATIC BOOLEAN ClipEnable =  FALSE;
 STATIC UINTN TimeParam = 2000;   // 2 second
 STATIC UINTN NumParam = 0;
 STATIC BOOLEAN ShowInfo = FALSE;
+STATIC UINTN Mode = 0xFF;
 
 // CmdLine: Main program help
 CHAR16 ProgHelpStr[]    = L"Graphics test";
@@ -46,6 +47,7 @@ SWTABLE_OPT_ENUM(   L"-r",  L"-run",        &GraphicTest, GraphicTestEnumStrs,  
 SWTABLE_OPT_FLAG(   L"-c",  L"-clip",       &ClipEnable,                        L"enable clipping during graphics test")
 SWTABLE_OPT_DEC(    L"-t",  L"-time",       &TimeParam,                         L"[time]time parameter (ms)")
 SWTABLE_OPT_DEC(    L"-n",  L"-number",     &NumParam,                          L"[num]number parameter")
+SWTABLE_OPT_DEC(    L"-m",  L"-mode",       &Mode,                              L"[num]set graphics mode")
 SWTABLE_OPT_FLAG(   L"-i",  L"-info",       &ShowInfo,                          L"show graphics info")
 SWTABLE_END
 
@@ -75,7 +77,7 @@ ShellAppMain (
             Print(L"ERROR: Failed to run graphics test (%r)\n", Status);
             goto Error_exit;
         }
-        //RestoreConsole();
+        RestoreConsole();
         PrintTestResults();
     }
 
