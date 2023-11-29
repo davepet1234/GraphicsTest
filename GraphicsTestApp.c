@@ -31,12 +31,13 @@ ENUMSTR_ENTRY(BOUNCING_BALL_TEST,   L"ball")
 ENUMSTR_END
 
 // CmdLine: Variables
-STATIC GRAPHIC_TEST_TYPE GraphicTest = NO_TEST;
+STATIC GRAPHIC_TEST_TYPE GraphicTest = ALL_TESTS;
 STATIC BOOLEAN ClipEnable =  FALSE;
 STATIC UINTN TimeParam = 2000;   // 2 second
 STATIC UINTN NumParam = 0;
-STATIC BOOLEAN ShowInfo = FALSE;
-STATIC UINTN Mode = 0xFF;
+STATIC BOOLEAN GopInfo = FALSE;
+STATIC UINT32 Mode = CURRENT_MODE;
+STATIC BOOLEAN ProgVersion =  FALSE;
 
 // CmdLine: Main program help
 CHAR16 ProgHelpStr[]    = L"Graphics test";
@@ -47,12 +48,13 @@ SWTABLE_OPT_ENUM(   L"-r",  L"-run",        &GraphicTest, GraphicTestEnumStrs,  
 SWTABLE_OPT_FLAG(   L"-c",  L"-clip",       &ClipEnable,                        L"enable clipping during graphics test")
 SWTABLE_OPT_DEC(    L"-t",  L"-time",       &TimeParam,                         L"[time]time parameter (ms)")
 SWTABLE_OPT_DEC(    L"-n",  L"-number",     &NumParam,                          L"[num]number parameter")
-SWTABLE_OPT_DEC(    L"-m",  L"-mode",       &Mode,                              L"[num]set graphics mode")
-SWTABLE_OPT_FLAG(   L"-i",  L"-info",       &ShowInfo,                          L"show graphics info")
+SWTABLE_OPT_DEC32(  L"-m",  L"-mode",       &Mode,                              L"[num]set graphics mode")
+SWTABLE_OPT_FLAG(   L"-i",  L"-info",       &GopInfo,                           L"graphics info")
+SWTABLE_OPT_FLAG(   NULL,   L"-version",    &ProgVersion,                       L"program version")
 SWTABLE_END
 
 
-STATIC EFI_STATUS DisplayInfo();
+STATIC EFI_STATUS DisplayGopInfo();
 
 
 INTN
@@ -68,16 +70,16 @@ ShellAppMain (
     if (ShellStatus != SHELL_SUCCESS) {
         return ShellStatus;
     }
-
-    if (ShowInfo) {
-        DisplayInfo();
+    if (ProgVersion) {
+        Print(L"Built: " __DATE__ " " __TIME__ "\n\n");
+    } else if (GopInfo) {
+        DisplayGopInfo();
     } else if (GraphicTest != NO_TEST) {
-        EFI_STATUS Status = RunGraphicTest(GraphicTest, TimeParam, NumParam, ClipEnable);
+        EFI_STATUS Status = RunGraphicTest(Mode, GraphicTest, TimeParam, NumParam, ClipEnable);
         if (EFI_ERROR(Status)) {
-            Print(L"ERROR: Failed to run graphics test (%r)\n", Status);
+            // Error should of already been displayed
             goto Error_exit;
         }
-        RestoreConsole();
         PrintTestResults();
     }
 
@@ -86,7 +88,7 @@ Error_exit:
 }
 
 
-STATIC EFI_STATUS DisplayInfo()
+STATIC EFI_STATUS DisplayGopInfo()
 {
     EFI_STATUS Status;
 
@@ -95,7 +97,7 @@ STATIC EFI_STATUS DisplayInfo()
         Print(L"ERROR: Failed to initialise graphics (%r)\n", Status);
         goto Error_exit;
     }
-    // List available graphics mode
+    // List available graphics modes
     Print(L"Available graphics modes:\n");
     for (UINTN i=0; i<NumGraphicsModes(); i++) {
         UINT32 HorRes, VerRes;

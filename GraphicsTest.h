@@ -13,6 +13,7 @@
 
 #include <Uefi.h>
 
+#define CURRENT_MODE 0xFFFF
 
 typedef enum {
     PIXEL_TEST=0,
@@ -33,7 +34,7 @@ typedef enum {
 } GRAPHIC_TEST_TYPE;
 
 
-EFI_STATUS RunGraphicTest(GRAPHIC_TEST_TYPE TestType, UINT32 Duration, UINT32 Iterations, BOOLEAN ClipTest);
+EFI_STATUS RunGraphicTest(UINT32 Mode, GRAPHIC_TEST_TYPE TestType, UINT32 Duration, UINT32 Iterations, BOOLEAN ClipTest);
 VOID PrintTestResults(VOID);
 
 

@@ -57,12 +57,13 @@ STATIC VOID RunRandCircleTest(UINT32 Duration, UINT32 Iterations, BOOLEAN Filled
 STATIC VOID RunRandTextTest(UINT32 Duration, UINT32 Iterations, BOOLEAN SetBackground);
 STATIC VOID RunClearScreenTest(UINT32 Duration, UINT32 Iterations);
 STATIC VOID RunBouncingBallTest(UINT32 Duration, UINT32 Iterations);
+//STATIC VOID WaitKeyPress(VOID);
 
 
 /*
  * RunGraphicTest()
  */
-EFI_STATUS RunGraphicTest(GRAPHIC_TEST_TYPE TestType, UINT32 Duration, UINT32 Iterations, BOOLEAN ClipTest)
+EFI_STATUS RunGraphicTest(UINT32 Mode, GRAPHIC_TEST_TYPE TestType, UINT32 Duration, UINT32 Iterations, BOOLEAN ClipTest)
 {
     EFI_STATUS Status;
 
@@ -76,13 +77,16 @@ EFI_STATUS RunGraphicTest(GRAPHIC_TEST_TYPE TestType, UINT32 Duration, UINT32 It
         Print(L"ERROR: Failed to initialise graphics (%r)\n", Status);
         return Status;
     }
-    UINTN Mode;
-    Status = GetGraphicsMode(&Mode);
-    if (EFI_ERROR(Status)) {
-        Print(L"ERROR: Failed to get graphics mode (%r)\n", Status);
-        return Status;
+    if (Mode != CURRENT_MODE) {
+        Status = SetGraphicsMode(Mode);
+        if (EFI_ERROR(Status)) {
+            Print(L"ERROR: Failed to set graphics mode %u (%r)\n", Mode, Status);
+            return Status;
+        }
     }
-    TestResults.Mode = Mode;
+    UINTN CurrMode;
+    GetGraphicsMode(&CurrMode);
+    TestResults.Mode = CurrMode;
     TestResults.HorRes = GetFBHorRes();
     TestResults.VerRes = GetFBVerRes();
     ClearScreen(0);
@@ -98,6 +102,7 @@ EFI_STATUS RunGraphicTest(GRAPHIC_TEST_TYPE TestType, UINT32 Duration, UINT32 It
     } else {
         RunTest(TestType, Duration, Iterations);
     }
+    RestoreConsole();
 
     return EFI_SUCCESS;
 }
@@ -536,3 +541,21 @@ error_exit:
     DestroyRenderBuffer(&RenBuf);
     SetScreenRender();
 }
+
+#if 0
+/*
+ * WaitKeyPress()
+ */
+STATIC VOID WaitKeyPress(VOID)
+{
+    EFI_INPUT_KEY key;
+    UINTN index;
+    // flush keyboard
+    while (!EFI_ERROR(gST->ConIn->ReadKeyStroke(gST->ConIn, &key)));
+    // wait for key
+    if (!EFI_ERROR(gST->BootServices->WaitForEvent(1, &gST->ConIn->WaitForKey, &index))) {
+        // read key pressed
+        while (!EFI_ERROR(gST->ConIn->ReadKeyStroke(gST->ConIn, &key)));
+    }
+}
+#endif 
