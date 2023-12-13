@@ -14,6 +14,7 @@
 #include <Library/DebugLib.h>
 #include <Library/PrintLib.h>
 #include <Library/IoLib.h>
+#include <Library/BaseMemoryLib.h>
 #include "GraphicsLib/Graphics.h"
 #include "GraphicsTest.h"
 #include "Timer.h"
@@ -23,47 +24,29 @@
 #define DbgPrint(Level, sFormat, ...)
 
 
-#define MIN_CIRCLE_RADIUS   5
-#define MIN_CIRCLE_DIAMETER (2 * MIN_CIRCLE_RADIUS)
+#define CIRCLE_MIN_RADIUS   5
+#define CIRCLE_MIN_DIAMETER (2 * CIRCLE_MIN_RADIUS)
 #define CLIP_FACTOR         8
 
 
-// local variables
-typedef struct {
-    BOOLEAN Run;    // true if test has been run
-    UINT32 Count;   // number of iterations
-    UINT32 Time;    // time taken
-} TEST_RUN_DATA;
-
-typedef struct {
-    UINTN Mode;     // graphics mode used
-    UINT32 HorRes;  // horizontial resolution
-    UINT32 VerRes;  // vertical resolution
-    TEST_RUN_DATA Data[NUM_TESTS];
-} TEST_RESULTS;
-
-TEST_RESULTS TestResults = {0};
-
-
 // local functions
-STATIC VOID RunTest(GRAPHIC_TEST_TYPE TestType, UINT32 Duration, UINT32 Iterations);
-STATIC CHAR16 *GetTestDesc(GRAPHIC_TEST_TYPE type);
-STATIC VOID RunRandPixelTest(UINT32 Duration, UINT32 Iterations);
-STATIC VOID RunRandLineTest(UINT32 Duration, UINT32 Iterations);
-STATIC VOID RunRandHLineTest(UINT32 Duration, UINT32 Iterations);
-STATIC VOID RunRandVLineTest(UINT32 Duration, UINT32 Iterations);
-STATIC VOID RunRandRectangleTest(UINT32 Duration, UINT32 Iterations, BOOLEAN Filled);
-STATIC VOID RunRandCircleTest(UINT32 Duration, UINT32 Iterations, BOOLEAN Filled);
-STATIC VOID RunRandTextTest(UINT32 Duration, UINT32 Iterations, BOOLEAN SetBackground);
-STATIC VOID RunClearScreenTest(UINT32 Duration, UINT32 Iterations);
-STATIC VOID RunBouncingBallTest(UINT32 Duration, UINT32 Iterations);
+STATIC VOID RunTest(GRAPHIC_TEST_TYPE TestType, UINT32 Duration, UINT32 Iterations, TEST_RESULTS *TestResults);
+STATIC VOID RunRandPixelTest(UINT32 Duration, UINT32 Iterations, TEST_RUN_DATA *RunData);
+STATIC VOID RunRandLineTest(UINT32 Duration, UINT32 Iterations, TEST_RUN_DATA *RunData);
+STATIC VOID RunRandHLineTest(UINT32 Duration, UINT32 Iterations, TEST_RUN_DATA *RunData);
+STATIC VOID RunRandVLineTest(UINT32 Duration, UINT32 Iterations, TEST_RUN_DATA *RunData);
+STATIC VOID RunRandRectangleTest(UINT32 Duration, UINT32 Iterations, BOOLEAN Filled, TEST_RUN_DATA *RunData);
+STATIC VOID RunRandCircleTest(UINT32 Duration, UINT32 Iterations, BOOLEAN Filled, TEST_RUN_DATA *RunData);
+STATIC VOID RunRandTextTest(UINT32 Duration, UINT32 Iterations, BOOLEAN SetBackground, TEST_RUN_DATA *RunData);
+STATIC VOID RunClearScreenTest(UINT32 Duration, UINT32 Iterations, TEST_RUN_DATA *RunData);
+STATIC VOID RunBouncingBallTest(UINT32 Duration, UINT32 Iterations, TEST_RUN_DATA *RunData);
 //STATIC VOID WaitKeyPress(VOID);
 
 
 /*
  * RunGraphicTest()
  */
-EFI_STATUS RunGraphicTest(UINT32 Mode, GRAPHIC_TEST_TYPE TestType, UINT32 Duration, UINT32 Iterations, BOOLEAN ClipTest)
+EFI_STATUS RunGraphicTest(UINT32 Mode, GRAPHIC_TEST_TYPE TestType, UINT32 Duration, UINT32 Iterations, BOOLEAN ClipTest, TEST_RESULTS *TestResults)
 {
     EFI_STATUS Status;
 
@@ -86,9 +69,12 @@ EFI_STATUS RunGraphicTest(UINT32 Mode, GRAPHIC_TEST_TYPE TestType, UINT32 Durati
     }
     UINTN CurrMode;
     GetGraphicsMode(&CurrMode);
-    TestResults.Mode = CurrMode;
-    TestResults.HorRes = GetFBHorRes();
-    TestResults.VerRes = GetFBVerRes();
+    if (TestResults) {
+        ZeroMem(TestResults, sizeof(TEST_RESULTS));
+        TestResults->Mode = CurrMode;
+        TestResults->HorRes = GetFBHorRes();
+        TestResults->VerRes = GetFBVerRes();
+    }
     ClearScreen(0);
     if (ClipTest) {
         INT32 HorOff = GetFBHorRes() / CLIP_FACTOR;
@@ -97,10 +83,10 @@ EFI_STATUS RunGraphicTest(UINT32 Mode, GRAPHIC_TEST_TYPE TestType, UINT32 Durati
     }    
     if (TestType == ALL_TESTS) {
         for (UINTN i=0; i<NUM_TESTS; i++) {
-            RunTest(i, Duration, Iterations);
+            RunTest(i, Duration, Iterations, TestResults);
         }         
     } else {
-        RunTest(TestType, Duration, Iterations);
+        RunTest(TestType, Duration, Iterations, TestResults);
     }
     RestoreConsole();
 
@@ -110,46 +96,47 @@ EFI_STATUS RunGraphicTest(UINT32 Mode, GRAPHIC_TEST_TYPE TestType, UINT32 Durati
 /*
  * RunTest()
  */
-STATIC VOID RunTest(GRAPHIC_TEST_TYPE TestType, UINT32 Duration, UINT32 Iterations)
+STATIC VOID RunTest(GRAPHIC_TEST_TYPE TestType, UINT32 Duration, UINT32 Iterations, TEST_RESULTS *TestResults)
 {
     ClearScreen(BLACK);
     Srand(1);
+    TEST_RUN_DATA *RunData = TestResults && (TestType < NUM_TESTS) ? &TestResults->Data[TestType] : NULL;
     switch(TestType) {            
     case PIXEL_TEST:
-        RunRandPixelTest(Duration, Iterations);
+        RunRandPixelTest(Duration, Iterations, RunData);
         break;
     case LINE_TEST:
-        RunRandLineTest(Duration, Iterations);
+        RunRandLineTest(Duration, Iterations, RunData);
         break;            
     case HLINE_TEST:
-        RunRandHLineTest(Duration, Iterations);
+        RunRandHLineTest(Duration, Iterations, RunData);
         break;            
     case VLINE_TEST:
-        RunRandVLineTest(Duration, Iterations);
+        RunRandVLineTest(Duration, Iterations, RunData);
         break;            
     case RECTANGLE_TEST:
-        RunRandRectangleTest(Duration, Iterations, FALSE);
+        RunRandRectangleTest(Duration, Iterations, FALSE, RunData);
         break;            
     case FILL_RECTANGLE_TEST:
-        RunRandRectangleTest(Duration, Iterations, TRUE);
+        RunRandRectangleTest(Duration, Iterations, TRUE, RunData);
         break;            
     case CIRCLE_TEST:
-        RunRandCircleTest(Duration, Iterations, FALSE);
+        RunRandCircleTest(Duration, Iterations, FALSE, RunData);
         break;
     case FILL_CIRCLE_TEST:
-        RunRandCircleTest(Duration, Iterations, TRUE);
+        RunRandCircleTest(Duration, Iterations, TRUE, RunData);
         break;
     case TEXT1_TEST:
-        RunRandTextTest(Duration, Iterations, TRUE);
+        RunRandTextTest(Duration, Iterations, TRUE, RunData);
         break;
     case TEXT2_TEST: // transparent text background
-        RunRandTextTest(Duration, Iterations, FALSE);
+        RunRandTextTest(Duration, Iterations, FALSE, RunData);
         break;
     case CLEAR_SCREEN_TEST:
-        RunClearScreenTest(Duration, Iterations);
+        RunClearScreenTest(Duration, Iterations, RunData);
         break;
     case BOUNCING_BALL_TEST:
-        RunBouncingBallTest(Duration, Iterations);
+        RunBouncingBallTest(Duration, Iterations, RunData);
         break;
     default:
         DbgPrint(DL_ERROR, "Invalid graphics test (%u)\n", TestType);
@@ -160,13 +147,17 @@ STATIC VOID RunTest(GRAPHIC_TEST_TYPE TestType, UINT32 Duration, UINT32 Iteratio
 /*
  * PrintTestResults()
  */
-VOID PrintTestResults(VOID)
+VOID PrintTestResults(TEST_RESULTS *TestResults)
 {
-    Print(L"Mode %u - %ux%u\n", TestResults.Mode, TestResults.HorRes, TestResults.VerRes);
+    Print(L"PrintTestResults() - TestResults=%p\n", TestResults);
+    if (!TestResults) {
+        return;
+    }
+    Print(L"Mode %u - %ux%u\n", TestResults->Mode, TestResults->HorRes, TestResults->VerRes);
     Print(L"Test        Iterations  Time\n");
     for (UINTN i=0; i<NUM_TESTS; i++) {
-        if (TestResults.Data[i].Run) {
-            Print(L"%-10s : %9u %5u\n", GetTestDesc(i), TestResults.Data[i].Count, TestResults.Data[i].Time);
+        if (TestResults->Data[i].Run) {
+            Print(L"%-10s : %9u %5u\n", GetTestDesc(i), TestResults->Data[i].Count, TestResults->Data[i].Time);
         }
     }
 }
@@ -174,7 +165,7 @@ VOID PrintTestResults(VOID)
 /*
  * GetTestDesc()
  */
-STATIC CHAR16 *GetTestDesc(GRAPHIC_TEST_TYPE type)
+CHAR16 *GetTestDesc(GRAPHIC_TEST_TYPE type)
 {
     switch (type) {
     case PIXEL_TEST:
@@ -210,7 +201,7 @@ STATIC CHAR16 *GetTestDesc(GRAPHIC_TEST_TYPE type)
 /*
  * RunRandPixelTest()
  */
-STATIC VOID RunRandPixelTest(UINT32 Duration, UINT32 Iterations)
+STATIC VOID RunRandPixelTest(UINT32 Duration, UINT32 Iterations, TEST_RUN_DATA *RunData)
 {
     UINT32 DisplayWidth = GetFBHorRes();
     UINT32 DisplayHeight = GetFBVerRes();
@@ -229,16 +220,17 @@ STATIC VOID RunRandPixelTest(UINT32 Duration, UINT32 Iterations)
         if (Duration && CalcMsTime(EndTime, StartTime) >= Duration) break;
         if (Iterations && (Count >= Iterations)) break;
     }
-    TEST_RUN_DATA *Results = &TestResults.Data[PIXEL_TEST];
-    Results->Run = TRUE;
-    Results->Count = Count;
-    Results->Time = CalcMsTime(EndTime, StartTime);
+    if (RunData) {
+        RunData->Run = TRUE;
+        RunData->Count = Count;
+        RunData->Time = CalcMsTime(EndTime, StartTime);
+    }
 }
 
 /*
  * RunRandLineTest()
  */
-STATIC VOID RunRandLineTest(UINT32 Duration, UINT32 Iterations)
+STATIC VOID RunRandLineTest(UINT32 Duration, UINT32 Iterations, TEST_RUN_DATA *RunData)
 {
     INT32 DisplayWidth = GetFBHorRes();
     INT32 DisplayHeight = GetFBVerRes();
@@ -259,16 +251,17 @@ STATIC VOID RunRandLineTest(UINT32 Duration, UINT32 Iterations)
         if (Duration && CalcMsTime(EndTime, StartTime) >= Duration) break;
         if (Iterations && (Count >= Iterations)) break;
     }
-    TEST_RUN_DATA *Results = &TestResults.Data[LINE_TEST];
-    Results->Run = TRUE;
-    Results->Count = Count;
-    Results->Time = CalcMsTime(EndTime, StartTime);
+    if (RunData) {
+        RunData->Run = TRUE;
+        RunData->Count = Count;
+        RunData->Time = CalcMsTime(EndTime, StartTime);
+    }
 }
 
 /*
  * RunRandHLineTest()
  */
-STATIC VOID RunRandHLineTest(UINT32 Duration, UINT32 Iterations)
+STATIC VOID RunRandHLineTest(UINT32 Duration, UINT32 Iterations, TEST_RUN_DATA *RunData)
 {
     INT32 DisplayWidth = GetFBHorRes();
     INT32 DisplayHeight = GetFBVerRes();
@@ -277,33 +270,29 @@ STATIC VOID RunRandHLineTest(UINT32 Duration, UINT32 Iterations)
     UINT64 EndTime = StartTime;
     while (TRUE) {
         UINT32 colour = Rand() % 0x1000000;
-#if 1
+
         INT32 x0 = Rand() % DisplayWidth;
         INT32 x1 = Rand() % DisplayWidth;
         INT32 y0 = Rand() % DisplayHeight;
         UINT32 w = ABS(x0-x1);
         DrawHLine((x0 > x1) ? x1 : x0, y0, w, colour);
-#else
-        INT32 x0 = Rand() % (DisplayWidth/2);
-        INT32 y0 = Rand() % DisplayHeight;
-        INT32 width = Rand() % (DisplayWidth - x0);
-        DrawHLine(x0, y0, width, colour);
-#endif
+
         Count++;
         EndTime = ReadTimer();
         if (Duration && CalcMsTime(EndTime, StartTime) >= Duration) break;
         if (Iterations && (Count >= Iterations)) break;
     }
-    TEST_RUN_DATA *Results = &TestResults.Data[HLINE_TEST];
-    Results->Run = TRUE;
-    Results->Count = Count;
-    Results->Time = CalcMsTime(EndTime, StartTime);
+    if (RunData) {
+        RunData->Run = TRUE;
+        RunData->Count = Count;
+        RunData->Time = CalcMsTime(EndTime, StartTime);
+    }
 }
 
 /*
  * RunRandVLineTest()
  */
-STATIC VOID RunRandVLineTest(UINT32 Duration, UINT32 Iterations)
+STATIC VOID RunRandVLineTest(UINT32 Duration, UINT32 Iterations, TEST_RUN_DATA *RunData)
 {
     INT32 DisplayWidth = GetFBHorRes();
     INT32 DisplayHeight = GetFBVerRes();
@@ -312,33 +301,29 @@ STATIC VOID RunRandVLineTest(UINT32 Duration, UINT32 Iterations)
     UINT64 EndTime = StartTime;
     while (TRUE) {
         UINT32 colour = Rand() % 0x1000000;
-#if 1
+
         INT32 x0 = Rand() % DisplayWidth;
         INT32 y0 = Rand() % DisplayHeight;
         INT32 y1 = Rand() % DisplayHeight;
         UINT32 h = ABS(y0-y1);
         DrawVLine(x0, (y0 > y1) ? y1 : y0, h, colour);
-#else        
-        INT32 x0 = Rand() % DisplayWidth;
-        INT32 y0 = Rand() % (DisplayHeight/2);
-        INT32 height = Rand() % (DisplayHeight - y0);
-        DrawVLine(x0, y0, height, colour);
-#endif
+
         Count++;
         EndTime = ReadTimer();
         if (Duration && CalcMsTime(EndTime, StartTime) >= Duration) break;
         if (Iterations && (Count >= Iterations)) break;
     }
-    TEST_RUN_DATA *Results = &TestResults.Data[VLINE_TEST];
-    Results->Run = TRUE;
-    Results->Count = Count;
-    Results->Time = CalcMsTime(EndTime, StartTime);
+    if (RunData) {
+        RunData->Run = TRUE;
+        RunData->Count = Count;
+        RunData->Time = CalcMsTime(EndTime, StartTime);
+    }
 }
 
 /*
  * RunRandRectangleTest()
  */
-STATIC VOID RunRandRectangleTest(UINT32 Duration, UINT32 Iterations, BOOLEAN Filled)
+STATIC VOID RunRandRectangleTest(UINT32 Duration, UINT32 Iterations, BOOLEAN Filled, TEST_RUN_DATA *RunData)
 {
     INT32 DisplayWidth = GetFBHorRes();
     INT32 DisplayHeight = GetFBVerRes();
@@ -363,16 +348,17 @@ STATIC VOID RunRandRectangleTest(UINT32 Duration, UINT32 Iterations, BOOLEAN Fil
         if (Duration && CalcMsTime(EndTime, StartTime) >= Duration) break;
         if (Iterations && (Count >= Iterations)) break;
     }
-    TEST_RUN_DATA *Results = Filled ? &TestResults.Data[FILL_RECTANGLE_TEST] : &TestResults.Data[RECTANGLE_TEST];
-    Results->Run = TRUE;
-    Results->Count = Count;
-    Results->Time = CalcMsTime(EndTime, StartTime);
+    if (RunData) {
+        RunData->Run = TRUE;
+        RunData->Count = Count;
+        RunData->Time = CalcMsTime(EndTime, StartTime);
+    }
 }
 
 /*
  * RunRandCircleTest()
  */
-STATIC VOID RunRandCircleTest(UINT32 Duration, UINT32 Iterations, BOOLEAN Filled)
+STATIC VOID RunRandCircleTest(UINT32 Duration, UINT32 Iterations, BOOLEAN Filled, TEST_RUN_DATA *RunData)
 {
     INT32 DisplayWidth = GetFBHorRes();
     INT32 DisplayHeight = GetFBVerRes();
@@ -381,9 +367,9 @@ STATIC VOID RunRandCircleTest(UINT32 Duration, UINT32 Iterations, BOOLEAN Filled
     UINT64 EndTime = StartTime;
     while (TRUE) {
         UINT32 colour = Rand() % 0x1000000;
-#if 0
-        INT32 x0 = Rand() % DisplayWidth;
-        INT32 y0 = Rand() % DisplayHeight;
+
+        UINT32 x0 = CIRCLE_MIN_RADIUS + Rand() % (DisplayWidth - CIRCLE_MIN_DIAMETER);
+        UINT32 y0 = CIRCLE_MIN_RADIUS + Rand() % (DisplayHeight - CIRCLE_MIN_DIAMETER);
         INT32 dist1 = x0 > DisplayWidth-x0 ? DisplayWidth-x0 : x0;
         INT32 dist2 = y0 > DisplayHeight-y0 ? DisplayHeight-y0 : y0;
         INT32 r = Rand() % (dist1 > dist2 ? dist2 : dist1);
@@ -392,42 +378,23 @@ STATIC VOID RunRandCircleTest(UINT32 Duration, UINT32 Iterations, BOOLEAN Filled
         } else {
             DrawCircle(x0, y0, r, colour);
         }
-#else
-        UINT32 xc = MIN_CIRCLE_RADIUS + Rand() % (DisplayWidth - MIN_CIRCLE_DIAMETER);
-        UINT32 yc = MIN_CIRCLE_RADIUS + Rand() % (DisplayHeight - MIN_CIRCLE_DIAMETER);
-        UINT32 dist1 = xc < yc ? xc : yc;
-        UINT32 dist2 = DisplayWidth - xc; 
-        dist1 = dist1 < dist2 ? dist1 : dist2;
-        dist2 = DisplayHeight - yc;
-        dist1 = dist1 < dist2 ? dist1 : dist2;
-        UINT32 radius;
-        if (dist1 !=  0) {
-            radius = Rand() % dist1;
-            if (Filled) {
-                DrawFillCircle(xc, yc, radius, colour);
-            } else {
-                DrawCircle(xc, yc, radius, colour);
-            }
-        } else {
-            DbgPrint(DL_ERROR, "%u: %3u %3u %3u\n", Count, xc, yc, dist1);
-        }
-#endif
 
         Count++;
         EndTime = ReadTimer();
         if (Duration && CalcMsTime(EndTime, StartTime) >= Duration) break;
         if (Iterations && (Count >= Iterations)) break;
     }
-    TEST_RUN_DATA *Results = Filled ? &TestResults.Data[FILL_CIRCLE_TEST] : &TestResults.Data[CIRCLE_TEST];
-    Results->Run = TRUE;
-    Results->Count = Count;
-    Results->Time = CalcMsTime(EndTime, StartTime);
+    if (RunData) {
+        RunData->Run = TRUE;
+        RunData->Count = Count;
+        RunData->Time = CalcMsTime(EndTime, StartTime);
+    }
 }
 
 /*
  * RunRandTextTest()
  */
-STATIC VOID RunRandTextTest(UINT32 Duration, UINT32 Iterations, BOOLEAN SetBackground)
+STATIC VOID RunRandTextTest(UINT32 Duration, UINT32 Iterations, BOOLEAN SetBackground, TEST_RUN_DATA *RunData)
 {
     FONT font = FONT10x20;
     INT32 DisplayWidth = GetFBHorRes();
@@ -450,16 +417,17 @@ STATIC VOID RunRandTextTest(UINT32 Duration, UINT32 Iterations, BOOLEAN SetBackg
         if (Duration && CalcMsTime(EndTime, StartTime) >= Duration) break;
         if (Iterations && (Count >= Iterations)) break;
     }
-    TEST_RUN_DATA *Results = SetBackground ? &TestResults.Data[TEXT1_TEST] : &TestResults.Data[TEXT2_TEST];
-    Results->Run = TRUE;
-    Results->Count = Count;
-    Results->Time = CalcMsTime(EndTime, StartTime);
+    if (RunData) {
+        RunData->Run = TRUE;
+        RunData->Count = Count;
+        RunData->Time = CalcMsTime(EndTime, StartTime);
+    }
 }
 
 /*
  * RunClearScreenTest()
  */
-STATIC VOID RunClearScreenTest(UINT32 Duration, UINT32 Iterations)
+STATIC VOID RunClearScreenTest(UINT32 Duration, UINT32 Iterations, TEST_RUN_DATA *RunData)
 {
     UINT32 Count = 0;
     UINT64 StartTime = ReadTimer();
@@ -478,16 +446,17 @@ STATIC VOID RunClearScreenTest(UINT32 Duration, UINT32 Iterations)
         if (Duration && CalcMsTime(EndTime, StartTime) >= Duration) break;
         if (Iterations && (Count >= Iterations)) break;
     }
-    TEST_RUN_DATA *Results = &TestResults.Data[CLEAR_SCREEN_TEST];
-    Results->Run = TRUE;
-    Results->Count = Count;
-    Results->Time = CalcMsTime(EndTime, StartTime);
+    if (RunData) {
+        RunData->Run = TRUE;
+        RunData->Count = Count;
+        RunData->Time = CalcMsTime(EndTime, StartTime);
+    }
 }
 
 /*
  * RunBouncingBallTest()
  */
-STATIC VOID RunBouncingBallTest(UINT32 Duration, UINT32 Iterations)
+STATIC VOID RunBouncingBallTest(UINT32 Duration, UINT32 Iterations, TEST_RUN_DATA *RunData)
 {
     EFI_STATUS Status;
 
@@ -532,10 +501,11 @@ STATIC VOID RunBouncingBallTest(UINT32 Duration, UINT32 Iterations)
             break;
         }
     }
-    TEST_RUN_DATA *Results = &TestResults.Data[BOUNCING_BALL_TEST];
-    Results->Run = TRUE;
-    Results->Count = Count;
-    Results->Time = CalcMsTime(EndTime, StartTime);
+    if (RunData) {
+        RunData->Run = TRUE;
+        RunData->Count = Count;
+        RunData->Time = CalcMsTime(EndTime, StartTime);
+    }
 
 error_exit:    
     DestroyRenderBuffer(&RenBuf);

@@ -36,3 +36,4 @@
   UefiLib
   ShellCEntryLib
   ShellLib
+  PrintLib

@@ -15,6 +15,7 @@
 
 #define CURRENT_MODE 0xFFFF
 
+// test type
 typedef enum {
     PIXEL_TEST=0,
     LINE_TEST,
@@ -33,9 +34,22 @@ typedef enum {
     NO_TEST
 } GRAPHIC_TEST_TYPE;
 
+// test result data
+typedef struct {
+    BOOLEAN Run;    // true if test has been run
+    UINT32 Count;   // number of iterations
+    UINT32 Time;    // time taken
+} TEST_RUN_DATA;
+typedef struct {
+    UINTN Mode;     // graphics mode used
+    UINT32 HorRes;  // horizontial resolution
+    UINT32 VerRes;  // vertical resolution
+    TEST_RUN_DATA Data[NUM_TESTS];
+} TEST_RESULTS;
 
-EFI_STATUS RunGraphicTest(UINT32 Mode, GRAPHIC_TEST_TYPE TestType, UINT32 Duration, UINT32 Iterations, BOOLEAN ClipTest);
-VOID PrintTestResults(VOID);
+EFI_STATUS RunGraphicTest(UINT32 Mode, GRAPHIC_TEST_TYPE TestType, UINT32 Duration, UINT32 Iterations, BOOLEAN ClipTest, TEST_RESULTS *TestResults);
+CHAR16 *GetTestDesc(GRAPHIC_TEST_TYPE type);
+VOID PrintTestResults(TEST_RESULTS *TestResults);
 
 
 #endif // GRAPHICS_TEST_H
