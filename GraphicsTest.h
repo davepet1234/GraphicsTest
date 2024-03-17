@@ -21,8 +21,10 @@ typedef enum {
     LINE_TEST,
     HLINE_TEST,
     VLINE_TEST,
+    TRIANGLE_TEST,
     RECTANGLE_TEST,
     CIRCLE_TEST,
+    FILL_TRIANGLE_TEST,
     FILL_RECTANGLE_TEST,
     FILL_CIRCLE_TEST,
     TEXT1_TEST,
@@ -47,9 +49,8 @@ typedef struct {
     TEST_RUN_DATA Data[NUM_TESTS];
 } TEST_RESULTS;
 
-EFI_STATUS RunGraphicTest(UINT32 Mode, GRAPHIC_TEST_TYPE TestType, UINT32 Duration, UINT32 Iterations, BOOLEAN ClipTest, TEST_RESULTS *TestResults);
+EFI_STATUS RunGraphicTest(UINT32 Mode, GRAPHIC_TEST_TYPE TestType, UINT32 Duration, UINT32 Iterations, BOOLEAN ClipTest, BOOLEAN Pause, TEST_RESULTS *TestResults);
 CHAR16 *GetTestDesc(GRAPHIC_TEST_TYPE type);
-VOID PrintTestResults(TEST_RESULTS *TestResults);
 
 
 #endif // GRAPHICS_TEST_H

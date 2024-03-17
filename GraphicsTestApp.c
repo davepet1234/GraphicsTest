@@ -13,6 +13,7 @@
 #include "CmdLineLib/CmdLine.h"
 #include "GraphicsLib/Graphics.h"
 #include "Timer.h"
+#include "Rand.h"
 #include "GraphicsTest.h"
 
 // CmdLine: Enum definition for test types
@@ -22,10 +23,12 @@ ENUMSTR_ENTRY(PIXEL_TEST,           L"pixel")
 ENUMSTR_ENTRY(LINE_TEST,            L"line")
 ENUMSTR_ENTRY(HLINE_TEST,           L"hline")
 ENUMSTR_ENTRY(VLINE_TEST,           L"vline")
-ENUMSTR_ENTRY(RECTANGLE_TEST,       L"rect")
+ENUMSTR_ENTRY(TRIANGLE_TEST,        L"triangle")
+ENUMSTR_ENTRY(RECTANGLE_TEST,       L"rectangle")
 ENUMSTR_ENTRY(CIRCLE_TEST,          L"circle")
-ENUMSTR_ENTRY(FILL_RECTANGLE_TEST,  L"fillrect")
-ENUMSTR_ENTRY(FILL_CIRCLE_TEST,     L"fillcircle")
+ENUMSTR_ENTRY(FILL_TRIANGLE_TEST,   L"ftriangle")
+ENUMSTR_ENTRY(FILL_RECTANGLE_TEST,  L"frectangle")
+ENUMSTR_ENTRY(FILL_CIRCLE_TEST,     L"fcircle")
 ENUMSTR_ENTRY(TEXT1_TEST,           L"text")
 ENUMSTR_ENTRY(TEXT2_TEST,           L"text2")
 ENUMSTR_ENTRY(CLEAR_SCREEN_TEST,    L"clear")
@@ -43,6 +46,8 @@ STATIC UINT32 Mode = CURRENT_MODE;
 STATIC BOOLEAN ProgVersion =  FALSE;
 STATIC BOOLEAN AllModes = FALSE;
 STATIC CHAR16 Filename[MAX_FILENAME_LEN];
+STATIC BOOLEAN Pause = FALSE;
+STATIC BOOLEAN DevFlag = FALSE;
 
 // CmdLine: Main program help
 CHAR16 ProgHelpStr[]    = L"Graphics test";
@@ -55,9 +60,11 @@ SWTABLE_OPT_DEC(    L"-t",  L"-time",       &TimeParam,                         
 SWTABLE_OPT_DEC(    L"-n",  L"-number",     &NumParam,                          L"[num]number parameter")
 SWTABLE_OPT_DEC32(  L"-m",  L"-mode",       &Mode,                              L"[num]set graphics mode (0...n)")
 SWTABLE_OPT_FLAG(   L"-a",  L"-allmodes",   &AllModes,                          L"run for all available graphics modes")
+SWTABLE_OPT_FLAG(   L"-p",  L"-pause",      &Pause,                             L"pause after each test")
 SWTABLE_OPT_FLAG(   L"-i",  L"-info",       &GopInfo,                           L"graphics info")
 SWTABLE_OPT_STR(    L"-f",  L" -file",      Filename, MAX_FILENAME_LEN,         L"[filename]Write results to file")
 SWTABLE_OPT_FLAG(   NULL,   L"-version",    &ProgVersion,                       L"program version")
+SWTABLE_OPT_FLAG(   NULL,   L"-dev",        &DevFlag,                           L"development")
 SWTABLE_END
 
 
@@ -65,6 +72,7 @@ STATIC EFI_STATUS DisplayGopInfo(VOID);
 STATIC EFI_STATUS CheckFile(CHAR16 *Filename);
 STATIC EFI_STATUS OutputTestResults(IN EFI_TIME *StartTime, IN EFI_TIME *EndTime, IN BOOLEAN ClipEnabled, IN TEST_RESULTS *Results, IN UINTN NumResults, IN CHAR16 *Filename);
 STATIC EFI_STATUS EFIAPI OutputString(IN SHELL_FILE_HANDLE FileHandle, IN CONST CHAR16 *FormatString, ...);
+STATIC VOID DevCode();
 
 /*
  * ShellAppMain() - Main entry point for shell application
@@ -116,6 +124,12 @@ ShellAppMain (
         goto App_exit;
     }
 
+    // Development
+    if (DevFlag) {
+        GraphicTest = NO_TEST;
+        DevCode();
+    }
+
     // Run tests
     if (GraphicTest != NO_TEST) {
         EFI_TIME StartTime;
@@ -130,14 +144,14 @@ ShellAppMain (
         if (AllModes) {
             // All graphic modes
             for (UINT32 m = 0; m <= NumModes-1; m++) {
-                EFI_STATUS Status = RunGraphicTest(m, GraphicTest, TimeParam, NumParam, ClipEnable, &TestResults[m]);
+                Status = RunGraphicTest(m, GraphicTest, TimeParam, NumParam, ClipEnable, Pause, &TestResults[m]);
                 if (EFI_ERROR(Status)) {
                     goto App_exit;
                 }
             }
         } else {
             // Current graphic mode
-            EFI_STATUS Status = RunGraphicTest(Mode, GraphicTest, TimeParam, NumParam, ClipEnable, &TestResults[0]);
+            Status = RunGraphicTest(Mode, GraphicTest, TimeParam, NumParam, ClipEnable, Pause, &TestResults[0]);
             if (EFI_ERROR(Status)) {
                 goto App_exit;
             }
@@ -256,11 +270,11 @@ STATIC EFI_STATUS OutputTestResults(IN EFI_TIME *StartTime, IN EFI_TIME *EndTime
     for (UINT32 m = 0; m < NumResults; m++) {
         Status = OutputString(FileHandle, L"Mode %u - %ux%u\n", Results[m].Mode, Results[m].HorRes, Results[m].VerRes);
         if (EFI_ERROR(Status)) goto Error_exit;
-        Status = OutputString(FileHandle, L"Test        Iterations  Time\n");
+        Status = OutputString(FileHandle, L"Test           Iterations  Time\n");
         if (EFI_ERROR(Status)) goto Error_exit;
         for (UINTN i=0; i<NUM_TESTS; i++) {
             if (Results[m].Data[i].Run) {
-                Status = OutputString(FileHandle, L"%-10s : %9u %5u\n", GetTestDesc(i), Results[m].Data[i].Count, Results[m].Data[i].Time);
+                Status = OutputString(FileHandle, L"%-13s : %9u %5u\n", GetTestDesc(i), Results[m].Data[i].Count, Results[m].Data[i].Time);
                 if (EFI_ERROR(Status)) goto Error_exit;
             }
         }
@@ -298,4 +312,18 @@ STATIC EFI_STATUS EFIAPI OutputString(IN SHELL_FILE_HANDLE FileHandle, IN CONST 
         AsciiPrint(buffer);
     }
     return Status;
+}
+
+/*
+ * DevCode() - Code in development
+ */
+
+STATIC VOID DevCode()
+{
+    Print(L"Development\n");
+
+    InitGraphics();
+    DrawFillTriangle(0, GetVerRes()/2, GetHorRes()/2, 0, GetHorRes()-1, GetVerRes()-1, RED); 
+    SetClipping(200, 200, GetHorRes()-200, GetVerRes()-200);
+    DrawFillTriangle(0, GetVerRes()/2, GetHorRes()/2, 0, GetHorRes()-1, GetVerRes()-1, GREEN); 
 }
