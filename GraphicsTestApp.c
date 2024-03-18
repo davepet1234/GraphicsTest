@@ -87,6 +87,7 @@ ShellAppMain (
     SHELL_STATUS ShellStatus = SHELL_SUCCESS;
     EFI_STATUS Status = EFI_SUCCESS;
     TEST_RESULTS *TestResults = NULL;
+    UINT32 *ModeList = NULL;
 
     Filename[0] = '\0';
 
@@ -143,8 +144,33 @@ ShellAppMain (
         gST->RuntimeServices->GetTime(&StartTime, (EFI_TIME_CAPABILITIES*)NULL);
         if (AllModes) {
             // All graphic modes
-            for (UINT32 m = 0; m <= NumModes-1; m++) {
-                Status = RunGraphicTest(m, GraphicTest, TimeParam, NumParam, ClipEnable, Pause, &TestResults[m]);
+            ModeList = (UINT32 *)AllocatePool(NumModes * sizeof(UINT32));
+            for (UINTN i = 0; i < NumModes; i++) {  // initialise mode list
+                ModeList[i] = i;
+            }
+            // Sort modes by resolution - bubble sort
+            for (UINTN i = 0; i < NumModes - 1; i++) {
+                for (UINTN j = 0; j < NumModes - i - 1; j++) {
+                    UINT32 HorRes1, VerRes1;
+                    Status = QueryGraphicsMode(ModeList[j], &HorRes1, &VerRes1);
+                    if (EFI_ERROR(Status)) {
+                        goto App_exit;
+                    }
+                    UINT32 HorRes2, VerRes2;
+                    Status = QueryGraphicsMode(ModeList[j + 1], &HorRes2, &VerRes2);
+                    if (EFI_ERROR(Status)) {
+                        goto App_exit;
+                    }
+                    if ((UINTN)HorRes1 * (UINTN)VerRes1 > (UINTN)HorRes2 * (UINTN)VerRes2) {
+                        UINT32 temp = ModeList[j];
+                        ModeList[j] = ModeList[j + 1];
+                        ModeList[j + 1] = temp;
+                    }
+                }
+            }
+            // Run test over all modes
+            for (UINTN i = 0; i < NumModes; i++) {
+                Status = RunGraphicTest(ModeList[i], GraphicTest, TimeParam, NumParam, ClipEnable, Pause, &TestResults[i]);
                 if (EFI_ERROR(Status)) {
                     goto App_exit;
                 }
@@ -171,6 +197,7 @@ ShellAppMain (
 
 App_exit:
     SHELL_FREE_NON_NULL(TestResults);
+    SHELL_FREE_NON_NULL(ModeList);
 
     if (EFI_ERROR(Status)) {
         Print(L"ERROR: Application returned - %r\n", Status);
@@ -268,7 +295,7 @@ STATIC EFI_STATUS OutputTestResults(IN EFI_TIME *StartTime, IN EFI_TIME *EndTime
     if (EFI_ERROR(Status)) goto Error_exit;
 
     for (UINT32 m = 0; m < NumResults; m++) {
-        Status = OutputString(FileHandle, L"Mode %u - %ux%u\n", Results[m].Mode, Results[m].HorRes, Results[m].VerRes);
+        Status = OutputString(FileHandle, L"%ux%u - Mode %u\n", Results[m].HorRes, Results[m].VerRes, Results[m].Mode);
         if (EFI_ERROR(Status)) goto Error_exit;
         Status = OutputString(FileHandle, L"Test           Iterations  Time\n");
         if (EFI_ERROR(Status)) goto Error_exit;
