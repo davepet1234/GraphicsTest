@@ -345,12 +345,84 @@ STATIC EFI_STATUS EFIAPI OutputString(IN SHELL_FILE_HANDLE FileHandle, IN CONST 
  * DevCode() - Code in development
  */
 
+STATIC VOID draw(VOID)
+{
+    // 10
+    for (INT32 x=10; x<=110; x+=5) {
+        PutPixel(x, 10, WHITE);
+    }
+    // 20
+    DrawHLine(10, 20, 101, RED);
+    // 30
+    DrawHLine2(10, 110, 30, YELLOW);
+    // 40-90
+    DrawVLine(10, 40, 50, BLUE);
+    DrawLine(20, 40, 110, 90, GREEN);
+    // 100-150
+    DrawTriangle(35,100, 10,150, 60,150, MAGENTA);
+    DrawFillTriangle(85,150, 60,100, 110,100, ORANGE);
+    // 160-210
+    DrawRectangle(10,160, 55,210, CYAN);
+    DrawFillRectangle(65, 160, 110,210, SILVER);
+    // 220-270
+    DrawCircle(34,245, 24, VIOLET);
+    DrawFillCircle(86,245, 24, LIGHT_GREEN);
+    // 280-295
+    GPutString(10, 280, L" SOME TEXT ", WHITE, RED, TRUE, FONT9x15);
+
+    TEXT_CONFIG gDebugTxtCfg = {0};
+    CreateTextBox(&gDebugTxtCfg, 120, 10, 100, 295, WHITE, BLUE, FONT7x14);
+    ClearTextBox(&gDebugTxtCfg);
+    GPrint(&gDebugTxtCfg, L"PutPixel\n");
+    GPrint(&gDebugTxtCfg, L"DrawHLine\n");
+    GPrint(&gDebugTxtCfg, L"DrawHLine2\n");
+    GPrint(&gDebugTxtCfg, L"DrawVLine\n");
+    GPrint(&gDebugTxtCfg, L"DrawLine\n");
+    GPrint(&gDebugTxtCfg, L"DrawTriangle\n");
+    GPrint(&gDebugTxtCfg, L"DrawFillTriangle\n");
+    GPrint(&gDebugTxtCfg, L"DrawRectangle\n");
+    GPrint(&gDebugTxtCfg, L"DrawFillRectangle\n");
+    GPrint(&gDebugTxtCfg, L"DrawCircle\n");
+    GPrint(&gDebugTxtCfg, L"DrawFillCircle\n");
+    GPrint(&gDebugTxtCfg, L"GPutString\n");
+    for (UINTN i=0; i<10; i++) {
+        GPrint(&gDebugTxtCfg, L"GPrint #%u\n", i);
+    }
+}
+
 STATIC VOID DevCode()
 {
     Print(L"Development\n");
 
     InitGraphics();
+
+#if 0
     DrawFillTriangle(0, GetVerRes()/2, GetHorRes()/2, 0, GetHorRes()-1, GetVerRes()-1, RED); 
     SetClipping(200, 200, GetHorRes()-200, GetVerRes()-200);
     DrawFillTriangle(0, GetVerRes()/2, GetHorRes()/2, 0, GetHorRes()-1, GetVerRes()-1, GREEN); 
+#endif    
+
+    EFI_STATUS Status = EFI_SUCCESS;
+
+    // draw directly to screen
+    draw();
+
+    RENDER_BUFFER RenBuf;
+    Status = CreateRenderBuffer(&RenBuf, 150, 500);
+    if (EFI_ERROR(Status)) goto error_exit;
+    Status = SetRenderBuffer(&RenBuf);
+    if (EFI_ERROR(Status)) goto error_exit;
+
+    // draw to buffer
+    draw();
+    // transfer to screen
+    Status = DisplayRenderBuffer(&RenBuf, 150, 10);
+    if (EFI_ERROR(Status)) goto error_exit;
+
+error_exit:
+    DestroyRenderBuffer(&RenBuf);
+    SetScreenRender();
+
+    Print(L"Status: %r\n", Status);
+
 }
