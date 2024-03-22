@@ -395,6 +395,7 @@ STATIC VOID DevCode()
     Print(L"Development\n");
 
     InitGraphics();
+    ClearScreen(BLACK);
 
 #if 0
     DrawFillTriangle(0, GetVerRes()/2, GetHorRes()/2, 0, GetHorRes()-1, GetVerRes()-1, RED); 
@@ -407,19 +408,19 @@ STATIC VOID DevCode()
     // draw directly to screen
     draw();
 
+    // create render buffer
     RENDER_BUFFER RenBuf;
-    Status = CreateRenderBuffer(&RenBuf, 150, 500);
-    if (EFI_ERROR(Status)) goto error_exit;
+    Status = CreateRenderBuffer(&RenBuf, 300, 500);
+    if (EFI_ERROR(Status)) goto Error_exit;
     Status = SetRenderBuffer(&RenBuf);
-    if (EFI_ERROR(Status)) goto error_exit;
-
+    if (EFI_ERROR(Status)) goto Error_exit;
     // draw to buffer
     draw();
-    // transfer to screen
-    Status = DisplayRenderBuffer(&RenBuf, 150, 10);
-    if (EFI_ERROR(Status)) goto error_exit;
+    // transfer buffer to screen
+    Status = DisplayRenderBuffer(&RenBuf, 250, 50);
+    if (EFI_ERROR(Status)) goto Error_exit;
 
-error_exit:
+Error_exit:
     DestroyRenderBuffer(&RenBuf);
     SetScreenRender();
 
