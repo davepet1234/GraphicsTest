@@ -13,14 +13,14 @@
 #include <Library/UefiBootServicesTableLib.h> //###
 #include <Library/DebugLib.h>
 #include <Library/PrintLib.h>
-#include <Library/IoLib.h>
+//####include <Library/IoLib.h>
 #include <Library/BaseMemoryLib.h>
 #include "GraphicsLib/Graphics.h"
 #include "CmdLineLib/CmdLine.h"
 #include "GraphicsTest.h"
 #include "Timer.h"
 #include "Rand.h"
-#include "Font.h"
+#include "GraphicsLib/Font.h"
 
 #define DbgPrint(Level, sFormat, ...)
 
@@ -69,7 +69,7 @@ EFI_STATUS RunGraphicTest(UINT32 Mode, GRAPHIC_TEST_TYPE TestType, UINT32 Durati
             goto Error_exit;
         }
     }
-    UINTN CurrMode;
+    UINT32 CurrMode;
     GetGraphicsMode(&CurrMode);
     if (TestResults) {
         ZeroMem(TestResults, sizeof(TEST_RESULTS));
@@ -234,7 +234,7 @@ STATIC VOID RunRandPixelTest(UINT32 Duration, UINT32 Iterations, TEST_RUN_DATA *
     if (RunData) {
         RunData->Run = TRUE;
         RunData->Count = Count;
-        RunData->Time = CalcMsTime(EndTime, StartTime);
+        RunData->Time =(UINT32) CalcMsTime(EndTime, StartTime);
     }
 }
 
@@ -448,7 +448,7 @@ STATIC VOID RunRandTextTest(UINT32 Duration, UINT32 Iterations, BOOLEAN SetBackg
     INT32 DisplayWidth = GetFBHorRes();
     INT32 DisplayHeight = GetFBVerRes();
     UINT16 Message[] = L"The quick brown fox jumps over the lazy dog.";
-    INT32 width = StrLen(Message) * GetFontWidth(font);
+    INT32 width = (INT32)(StrLen(Message) * GetFontWidth(font));
     INT32 height = GetFontHeight(font);
     UINT32 Count = 0;
     UINT64 StartTime = ReadTimer();

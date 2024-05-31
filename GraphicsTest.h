@@ -40,7 +40,7 @@ typedef enum {
 typedef struct {
     BOOLEAN Run;    // true if test has been run
     UINT32 Count;   // number of iterations
-    UINT32 Time;    // time taken
+    UINT64 Time;    // time taken
 } TEST_RUN_DATA;
 typedef struct {
     UINTN Mode;     // graphics mode used

@@ -39,8 +39,8 @@ ENUMSTR_END
 #define MAX_FILENAME_LEN 256
 STATIC GRAPHIC_TEST_TYPE GraphicTest = ALL_TESTS;
 STATIC BOOLEAN ClipEnable =  FALSE;
-STATIC UINTN TimeParam = 2000;   // 2 second
-STATIC UINTN NumParam = 0;
+STATIC UINT32 TimeParam = 2000;   // 2 second
+STATIC UINT32 NumParam = 0;
 STATIC BOOLEAN GopInfo = FALSE;
 STATIC UINT32 Mode = CURRENT_MODE;
 STATIC BOOLEAN ProgVersion =  FALSE;
@@ -56,8 +56,8 @@ CHAR16 ProgHelpStr[]    = L"Graphics test";
 SWTABLE_START(SwitchTable)
 SWTABLE_OPT_ENUM(   L"-r",  L"-run",        &GraphicTest, GraphicTestEnumStrs,  L"[opt]run graphics test")
 SWTABLE_OPT_FLAG(   L"-c",  L"-clip",       &ClipEnable,                        L"enable clipping during graphics test")
-SWTABLE_OPT_DEC(    L"-t",  L"-time",       &TimeParam,                         L"[time]time parameter (ms)")
-SWTABLE_OPT_DEC(    L"-n",  L"-number",     &NumParam,                          L"[num]number parameter")
+SWTABLE_OPT_DEC32(  L"-t",  L"-time",       &TimeParam,                         L"[time]time parameter (ms)")
+SWTABLE_OPT_DEC32(  L"-n",  L"-number",     &NumParam,                          L"[num]number parameter")
 SWTABLE_OPT_DEC32(  L"-m",  L"-mode",       &Mode,                              L"[num]set graphics mode (0...n)")
 SWTABLE_OPT_FLAG(   L"-a",  L"-allmodes",   &AllModes,                          L"run for all available graphics modes")
 SWTABLE_OPT_FLAG(   L"-p",  L"-pause",      &Pause,                             L"pause after each test")
@@ -145,7 +145,7 @@ ShellAppMain (
         if (AllModes) {
             // All graphic modes
             ModeList = (UINT32 *)AllocatePool(NumModes * sizeof(UINT32));
-            for (UINTN i = 0; i < NumModes; i++) {  // initialise mode list
+            for (UINT32 i = 0; i < NumModes; i++) {  // initialise mode list
                 ModeList[i] = i;
             }
             // Sort modes by resolution - bubble sort
@@ -214,14 +214,14 @@ STATIC EFI_STATUS DisplayGopInfo(VOID)
 
     // List all available graphics modes
     Print(L"Available graphics modes:\n");
-    for (UINTN i=0; i<NumGraphicsModes(); i++) {
+    for (UINT32 i=0; i<NumGraphicsModes(); i++) {
         UINT32 HorRes, VerRes;
         if (!EFI_ERROR(QueryGraphicsMode(i, &HorRes, &VerRes))) {
             Print(L"%2u: %ux%u\n", i , HorRes, VerRes);
         }
     }
     // Current graphics mode
-    UINTN Mode;
+    UINT32 Mode;
     Status = GetGraphicsMode(&Mode);
     if (EFI_ERROR(Status)) {
         Print(L"ERROR: Failed to read current graphics mode (%r)\n", Status);
